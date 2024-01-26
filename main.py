@@ -4,7 +4,8 @@ mydb = mysql.connector.connect(
   host="localhost",
   user="root",
   password="abhinav07",
-  autocommit=True
+  autocommit=True,
+  port="3306"
 )
 
 mycursor = mydb.cursor()
@@ -12,45 +13,45 @@ mycursor.execute("CREATE DATABASE IF NOT EXISTS oddeven")
 mycursor.execute("USE oddeven")
 mycursor.execute("CREATE TABLE IF NOT EXISTS users(userID int primary key, userNAME varchar(30))")
 mycursor.execute("CREATE TABLE IF NOT EXISTS scoreboard(userID int, wins int, losses int, highest_score int, lowest_score int, foreign key(userID) references users(userID))")
-
-first = ""
+mycursor.execute("CREATE TABLE IF NOT EXISTS livematch (MatchID int, UserID1 int, UserID2 int, toss char (7))")
 global user_data
 user_data = []
-
-mycursor.execute("SHOW VARIABLES LIKE 'version';")
-result = mycursor.fetchone()
-if int(result[1].split('.')[0]) >= 8:
-    mycursor.execute("SET @@global.event_scheduler = ON;")
-
 
 def cls():
     os.system('cls' if os.name=='nt' else 'clear')
 
 def batting_players(hostOrPlayer, inning, runstobe, matchno):
     print("Choose a number from 1 to 6")
+    i=1
     runs = 0
     while True:
+        if inning=="second":
+            print("You have to chase", runstobe, "runs")
         try:
             num=int(input("You entered: "))
+            if num not in [1,2,3,4,5,6]:
+                continue
         except:
             num=int(input("You entered: "))
         if hostOrPlayer=="host":
-            mycursor.execute(f"UPDATE livematch set last_num_host={num} where matchID={matchno}")
+            mycursor.execute(f"INSERT INTO MATCH_{matchno} (last_num_host, Balls, innings) VALUES({num}, {i}, '{inning}')")
+            mydb.commit()
             while True:
-                mycursor.execute(f"SELECT last_num_player from livematch where matchID={matchno}")
+                mycursor.execute(f"SELECT last_num_player from match_{matchno} where Balls={i} and last_num_host is NULL and innings='{inning}'")
                 myresult = mycursor.fetchall()
-                if myresult!=[(None,)]:
+                if myresult!=[]:
                     print(f"Player entered: {myresult[0][0]}")
-                    mycursor.execute(f"UPDATE livematch set last_num_host=NULL where matchID={matchno}")
+                    i+=1
                     break
         else:
-            mycursor.execute(f"UPDATE livematch set last_num_player={num} where matchID={matchno}")
+            mycursor.execute(f"INSERT INTO MATCH_{matchno} (last_num_player, Balls, innings) VALUES({num}, {i}, '{inning}')")
+            mydb.commit()
             while True:
-                mycursor.execute(f"SELECT last_num_host from livematch where matchID={matchno}")
+                mycursor.execute(f"SELECT last_num_host from match_{matchno} where Balls={i} and last_num_player is NULL and innings='{inning}'")
                 myresult = mycursor.fetchall()
-                if myresult!=[(None,)]:
+                if myresult!=[]:
                     print(f"Host entered: {myresult[0][0]}")
-                    mycursor.execute(f"UPDATE livematch set last_num_player=NULL where matchID={matchno}")
+                    i+=1
                     break
         player_num = myresult[0][0]
         if num==player_num:
@@ -58,8 +59,10 @@ def batting_players(hostOrPlayer, inning, runstobe, matchno):
             myresult=(mycursor.fetchall())[0]
             if runs<myresult[1]:
                 mycursor.execute(f"UPDATE scoreboard set lowest_score={runs} where userID={user_data[0][0]}")
+                mydb.commit()
             elif runs>myresult[0]:
                 mycursor.execute(f"UPDATE scoreboard set highest_score={runs} where userID={user_data[0][0]}")
+                mydb.commit()
             if inning=="second":
                 time.sleep(1)
                 cls()
@@ -67,6 +70,7 @@ def batting_players(hostOrPlayer, inning, runstobe, matchno):
                 print("You lost the match")
                 if user_data!=[]:
                     mycursor.execute(f"UPDATE scoreboard set losses=losses+1 where userID={user_data[0][0]}")
+                    mydb.commit()
                 break
             else:
                 print("You scored a total of: ", runs,"runs")
@@ -88,11 +92,13 @@ def batting_players(hostOrPlayer, inning, runstobe, matchno):
                     print("You won the match")
                     if user_data!=[]:
                         mycursor.execute(f"UPDATE scoreboard set wins=wins+1 where userID={user_data[0][0]}")
+                        mydb.commit()
                     break
 
 def bowling_players(hostOrPlayer, inning, runstobe, matchno):
     print("Choose a number from 1 to 6")
     runs = 0
+    i=1
     while True:
         if inning=="second":
             if hostOrPlayer=="host":
@@ -101,25 +107,29 @@ def bowling_players(hostOrPlayer, inning, runstobe, matchno):
                 print(f"Host needs", runstobe, "runs to win")
         try:
             num=int(input("You entered: "))
+            if num not in [1,2,3,4,5,6]:
+                continue
         except:
             num=int(input("You entered: "))
         if hostOrPlayer=="host":
-            mycursor.execute(f"UPDATE livematch set last_num_host={num} where matchid={matchno}")
+            mycursor.execute(f"INSERT INTO MATCH_{matchno} (last_num_host, Balls, innings) VALUES({num}, {i}, '{inning}')")
+            mydb.commit()
             while True:
-                mycursor.execute(f"SELECT last_num_player from livematch where matchid={matchno}")
+                mycursor.execute(f"SELECT last_num_player from match_{matchno} where Balls={i} and last_num_host is NULL and innings='{inning}'")
                 myresult = mycursor.fetchall()
-                if myresult!=[(None,)]:
+                if myresult!=[]:
                     print(f"Player entered: {myresult[0][0]}")
-                    mycursor.execute(f"UPDATE livematch set last_num_host=NULL where matchID={matchno}")
+                    i+=1
                     break
         else:
-            mycursor.execute(f"UPDATE livematch set last_num_player={num} where matchid={matchno}")
+            mycursor.execute(f"INSERT INTO MATCH_{matchno} (last_num_player, Balls, innings) VALUES({num}, {i}, '{inning}')")
+            mydb.commit()
             while True:
-                mycursor.execute(f"SELECT last_num_host from livematch where matchid={matchno}")
+                mycursor.execute(f"SELECT last_num_host from match_{matchno} where Balls={i} and last_num_player is NULL and innings='{inning}'")
                 myresult = mycursor.fetchall()
-                if myresult!=[(None,)]:
+                if myresult!=[]:
                     print(f"Host entered: {myresult[0][0]}")
-                    mycursor.execute(f"UPDATE livematch set last_num_player=NULL where matchID={matchno}")
+                    i+=1
                     break
         player_num = myresult[0][0]
         if num==player_num:
@@ -129,7 +139,9 @@ def bowling_players(hostOrPlayer, inning, runstobe, matchno):
                 print("You won the match")
                 if user_data!=[]:
                     mycursor.execute(f"UPDATE scoreboard set wins=wins+1 where userID={user_data[0][0]}")
-                    mycursor.execute(f"DELETE from livematch where matchno={matchno}")
+                    mycursor.execute(f"DELETE from livematch where matchid={matchno}")
+                    mycursor.execute(f"DROP TABLE match_{matchno}")
+                    mydb.commit()
                     break
             else:                   
                 time.sleep(1)
@@ -137,7 +149,7 @@ def bowling_players(hostOrPlayer, inning, runstobe, matchno):
                 if hostOrPlayer=="player":
                     print(f"Host scored a total of:", runs, "runs")
                 else:
-                    print(f"You scored a total of:", runs, "runs")
+                    print(f"Player scored a total of:", runs, "runs")
                 print("You have to bat now")
                 batting_players(hostOrPlayer, "second", runs+1, matchno)
                 break
@@ -148,7 +160,7 @@ def bowling_players(hostOrPlayer, inning, runstobe, matchno):
             if hostOrPlayer=="player":
                 print(f"Host scored a total of:", runs, "runs")
             else:
-                print(f"You scored a total of:", runs, "runs")
+                print(f"Player scored a total of:", runs, "runs")
             if runstobe!=0:
                 runstobe -=player_num
                 if runstobe<=0:
@@ -157,7 +169,9 @@ def bowling_players(hostOrPlayer, inning, runstobe, matchno):
                     print("You lost the match")
                     if user_data!=[]:
                         mycursor.execute(f"UPDATE scoreboard set losses=losses+1 where userID={user_data[0][0]}")
-                        mycursor.execute(f"DELETE from livematch where matchno={matchno}")
+                        mycursor.execute(f"DELETE from livematch where matchid={matchno}")
+                        mycursor.execute(f"DROP TABLE match_{matchno}")
+                        mydb.commit()
                     break
 
 def batting_function(inning, runstobe):
@@ -173,7 +187,7 @@ def batting_function(inning, runstobe):
         lst = [1,2,3,4,5,6]
         program_choice = random.choice(lst)
         if num in lst:
-            print("Program choose:", program_choice)
+            print("Program chose:", program_choice)
             if num==program_choice:
                 if user_data!=[]:
                     mycursor.execute(f"SELECT highest_score, lowest_score from scoreboard where userID={user_data[0][0]}")
@@ -225,7 +239,7 @@ def bowling_function(inning, runstobe):
         lst = [1,2,3,4,5,6]
         program_choice = random.choice(lst)
         if num in lst:
-            print("Program choose:", program_choice)
+            print("Program chose:", program_choice)
             if num==program_choice:
                    if inning=="second":
                        time.sleep(1)
@@ -262,31 +276,34 @@ print("Welcome to Odd-Even")
 
 
 while True:
-
-    ch1=input("Menu (Select options by just entering the number)\n1. Login\n2. Signup\n3. Play as a guest\n")
-    if ch1=="1":
-        login = int(input("Enter your user id"))
-        mycursor.execute(f"SELECT userID, userName from users where userID={login}")
-        myresult = mycursor.fetchall()
-        if myresult==[]:
-            print("Invalid User ID. Enter again")
-        else:
-            user_data = myresult
-            break
-    elif ch1=="2":
-        login = input("Enter your name")
-        userno = random.choice(range(10000,99999))
-        mycursor.execute(f"SELECT userID from users where userID={userno}")
-        myresult = mycursor.fetchall()
-        if myresult!=[]:
+    try:
+        ch1=input("Menu (Select options by just entering the number)\n1. Login\n2. Signup\n3. Play as a guest\n")
+        if ch1=="1":
+            login = int(input("Enter your user id"))
+            mycursor.execute(f"SELECT userID, userName from users where userID={login}")
+            myresult = mycursor.fetchall()
+            if myresult==[]:
+                print("Invalid User ID. Enter again")
+            else:
+                user_data = myresult
+                break
+        elif ch1=="2":
+            login = input("Enter your name")
             userno = random.choice(range(10000,99999))
-        mycursor.execute(f"INSERT INTO users values({userno}, '{login}')")
-        mycursor.execute(f"INSERT INTO scoreboard values({userno}, 0,0,0,0)")
-        print(f"Registered succesfully. Please remember your User ID:-\n{userno}")
-    elif ch1=="3":
-        break
-    else:
-        cls()
+            mycursor.execute(f"SELECT userID from users where userID={userno}")
+            myresult = mycursor.fetchall()
+            if myresult!=[]:
+                userno = random.choice(range(10000,99999))
+            mycursor.execute(f"INSERT INTO users values({userno}, '{login}')")
+            mycursor.execute(f"INSERT INTO scoreboard values({userno}, 0,0,0,0)")
+            print(f"Registered succesfully. Please remember your User ID:-\n{userno}")
+        elif ch1=="3":
+            break
+        else:
+            cls()
+            continue
+    except:
+        print("An unknown error occured. Try again")
         continue
 cls()
 if user_data!=[]:
@@ -315,6 +332,7 @@ while True:
                     else:
                         cls()
                         continue
+                break
             elif ques=="2":
                 while True:
                     q = input("Do you wish to:-\n1. Create a match\n2. Join match created by other players")
@@ -322,17 +340,14 @@ while True:
                         matchno = random.randint(10000,99999)
                         print(f"Created match no. {matchno}")
                         print("Publishing to Database")
-
-                        mycursor.execute(f"INSERT INTO livematch VALUES({matchno}, {user_data[0][0]}, NULL, NULL, NULL, NULL)")
-                        print("Searching for players....")
+                        mycursor.execute(f"INSERT INTO livematch VALUES({matchno}, {user_data[0][0]}, NULL, NULL)")
+                        mycursor.execute(f"CREATE TABLE MATCH_{matchno} (last_num_host int, last_num_player int, Balls int, innings varchar(7))")
+                        print("Searching for players....\nIf at any point, you wish to quit, press CTRL+C")
                         while True:
                             try:
                                 mycursor.execute(f"SELECT userID2 from livematch where userID1={user_data[0][0]} and userID2 is Null")
                                 myresult = mycursor.fetchall()
-                                if myresult==[(None,)]:
-                                    print("No players available currently. Press CTRL+C to abort at any time")
-                                    time.sleep(5)
-                                else:
+                                if myresult!=[(None,)]:
                                     break
                             except KeyboardInterrupt:
                                 mycursor.execute(f"DELETE FROM livematch where userID1={user_data[0][0]}")
@@ -347,6 +362,7 @@ while True:
                                 first = "batting"
                                 cls()
                                 print(f"You chose {first}")
+                                print("Remember, for this match, you are the host")
                                 mycursor.execute(f"UPDATE livematch set toss='batting' where userID1={user_data[0][0]}")
                                 batting_players("host", "first",0, matchno)
                                 break
@@ -354,6 +370,7 @@ while True:
                                 first = "bowling"
                                 cls()
                                 print(f"You chose {first}")
+                                print("Remember, for this match, you are the host")
                                 mycursor.execute(f"UPDATE livematch set toss='bowling' where userID1={user_data[0][0]}")
                                 bowling_players("host", "first",0, matchno)
                                 break
@@ -361,7 +378,7 @@ while True:
                                 cls()
                                 print("As the host, you decide the toss")
                                 continue
-
+                        break   
                     elif q=="2":
                         print("Looking for matches")
                         mycursor.execute("SELECT matchID from livematch where userID2 is NULL")
@@ -388,19 +405,22 @@ while True:
                                 first = 'bowling'
                                 cls()
                                 print(f"You have to bowl")
+                                print("Remember, for this match, you are the player")
                                 bowling_players("player", "first",0, matchno)
                             else:
                                 first = 'batting'
                                 cls()
                                 print(f"You have to bat")
+                                print("Remember, for this match, you are the player")
                                 batting_players("player", "first",0, matchno)
+                        break
                     else:
                         cls()
                         continue
+                break
             else:
                 cls()
                 continue
-        
     elif ch=="2":
         cls()
         print("The rules for the game is:\n1. You can select whether to bat first or bowl first.\n2. Depending on what you chose, you can type in numbers from 1 to 6 only.\n3. If you and the program chooses the same number you will be out. \n4. A win will fetch you 3 points, while losing a game will deduct 1 point from you. Ties won't affect your score.\nAll the best.\n\n")
