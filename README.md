@@ -1,4 +1,5 @@
 Welcome to Odd-Even, a cricket game created by Abhinav Satheesh
+
 Created with Python and MySQL
 
 The rules for the game is:
